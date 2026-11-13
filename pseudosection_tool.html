@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pseudo Cross-Section Maker (VES)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--ink:#1d2433;--mut:#5d687c;--line:#dde2ec;--bg:#f5f7fb;--card:#fff;--acc:#2a5bd7;--acc2:#e8eefc}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Thai",sans-serif;color:var(--ink);background:var(--bg)}
+header{padding:18px 24px;background:#fff;border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:20px}
+header p{margin:2px 0 0;color:var(--mut)}
+.top{padding:18px 24px 0}
+#cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:10px}
+.wrap{padding-top:4px!important}
+.wrap{display:grid;grid-template-columns:minmax(340px,430px) 1fr;gap:18px;padding:18px 24px;align-items:start}
+@media(max-width:980px){.wrap{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.card h2{margin:0 0 8px;font-size:15px;display:flex;gap:8px;align-items:center}
+.card h2 .n{background:var(--acc);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+.th{color:var(--mut);font-weight:400;font-size:12px}
+label{display:block;font-size:12px;color:var(--mut);margin:8px 0 2px}
+input[type=text],input[type=number],select,textarea{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;background:#fff;color:var(--ink)}
+textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:90px}
+button{font:inherit;padding:7px 12px;border-radius:6px;border:1px solid var(--line);background:#fff;cursor:pointer;color:var(--ink)}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+button:hover{filter:brightness(.97)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1 1 90px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{padding:4px 9px;border:1px solid var(--line);border-radius:14px;cursor:pointer;background:#fff;font-size:12px;user-select:none}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.pt{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:8px;background:#fbfcfe}
+.pt .hd{display:flex;justify-content:space-between;align-items:center;font-weight:600}
+.pt .x{border:none;background:none;color:#b3261e;cursor:pointer;padding:0 4px;font-size:16px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.small{font-size:12px;color:var(--mut)}
+.msg{padding:8px 10px;border-radius:6px;margin-top:8px;font-size:13px}
+.err{background:#fdecea;color:#8c1d18}.ok{background:#e8f5e9;color:#1b5e20}.info{background:var(--acc2);color:#1c3d94}
+.bar{height:16px;border-radius:4px;border:1px solid var(--line);margin-top:6px}
+#cv{max-width:100%}
+.tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.tools button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.tools .bf{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--mut)}
+.tools .bf input{width:64px}
+#map{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;background:#fcfdff;display:block;touch-action:none;cursor:crosshair}
+#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;background:#fff;display:block}
+#res img{width:100%;border-radius:8px;border:1px solid var(--line);margin-top:8px}
+details summary{cursor:pointer;color:var(--acc);font-weight:600;margin-top:6px}
+.cus .cr{display:flex;gap:8px;align-items:center;margin-top:5px}.cus .cr input[type=color]{width:48px;height:32px;padding:0;border:1px solid var(--line);border-radius:6px;flex:0 0 auto}.cus .cr input[type=number]{flex:1;min-width:0}.cus .cr button{flex:0 0 auto;padding:4px 9px}.cus .cr span{font-size:12px;color:#667}
+.sw{display:flex;gap:10px;margin-top:6px}.sw label{margin:0;flex:1;text-align:center}
+.sw input{width:100%;height:32px;padding:0;border:1px solid var(--line);border-radius:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Pseudo Cross-Section Maker <span class="th">· สร้างภาพตัดขวางเทียมจากข้อมูล VES</span></h1>
+  <p>Add at least 3 sounding points, choose a colour map, click “Draw”. Everything runs in your browser; nothing is uploaded.</p>
+</header>
+<div class="top">
+  <div class="card">
+    <h2><span class="n">1</span>Add your soundings <span class="th">เพิ่มจุดสำรวจ</span></h2>
+    <div class="row"><button id="addBtn">+ Add a point by pasting</button><button id="exBtn">Load example</button></div>
+    <label>…or load an Excel file (your VES workbook with one sheet per point, or a form with columns X, Y, Z, Elev, Detailed)</label>
+    <input type="file" id="file" accept=".xlsx,.xls,.csv">
+    <div id="libWrap" style="display:none">
+      <div class="small" style="margin-top:8px">Click the points to include in this section (<b id="selN">0</b> selected):</div>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div id="cards"></div>
+    <div id="loadMsg"></div>
+  </div>
+
+  <div class="card" id="mapCard" hidden>
+    <h2>Map of points <span class="th">แผนที่จุดสำรวจ</span></h2>
+    <div class="tools">
+      <button data-m="line" class="mb on" title="Press and drag across the map to draw a line. Points near it are selected.">✏️ Draw a line</button>
+      <button data-m="pick" class="mb" title="Click a point to add or remove it">👆 Click points</button>
+      <button data-m="pan" class="mb" title="Drag to move the map; mouse wheel to zoom">✋ Move map</button>
+      <span class="bf">Select within <input type="number" id="buf" value="15" min="1"> m of line</span>
+      <button id="fitMain">Zoom to main group</button><button id="fitAll">Show all</button><button id="clrSel">Clear selection</button>
+    </div>
+    <canvas id="map" width="1000" height="560"></canvas>
+    <div class="small" id="mapInfo">Draw a line across the points you want in one cross-section (hold Shift to add to the selection), or click points one by one. Mouse wheel = zoom.</div>
+    <div id="mapMsg"></div>
+  </div>
+  <div class="card" id="gwCard" hidden>
+    <h2>Groundwater screening from known wells <span class="th">ใช้บ่อที่รู้ผลแล้วช่วยประเมินจุดอื่น</span></h2>
+    <div class="small">Tell the tool where water was (or was not) found at some soundings. It learns the resistivity range of the water-bearing zone in <b>your</b> area, then rates every other sounding, suggests a depth, warns about points that look like dry wells, and can draw the water-bearing zone on the cross-section. More wells = better (use at least 3 with water).</div>
+    <div class="tools" style="margin-top:10px">
+      <select id="wPt" style="width:auto;min-width:140px"></select>
+      <select id="wType" style="width:auto"><option value="wet">Water found at depth</option><option value="dry">Dry well (no water)</option></select>
+      <span class="bf"><span id="wALab">from</span> <input type="number" id="wA" placeholder="20" min="0"> to <input type="number" id="wB" placeholder="24" min="0"> m</span>
+      <button id="wAdd" class="pri">Add well</button>
+    </div>
+    <div class="chips" id="wList"></div>
+    <div class="row" style="margin-top:10px"><button id="scrBtn" class="pri" style="flex:0 0 auto">Screen all soundings</button><button id="scrCopy" style="flex:0 0 auto">Copy table</button><button id="scrClear" style="flex:0 0 auto">Clear screening</button></div>
+    <div id="scrMsg"></div>
+    <div id="scrOut" style="overflow:auto;max-height:420px;margin-top:8px"></div>
+    <canvas id="scrCv" width="1000" height="540" style="display:none;width:100%;height:auto;border:1px solid var(--line);border-radius:8px;margin-top:10px;background:#fff"></canvas>
+  </div>
+</div>
+<div class="wrap">
+<div>
+  <div class="card">
+    <h2><span class="n">2</span>Distance along the section <span class="th">ระยะตามแนว</span></h2>
+    <select id="dmode">
+      <option value="coords">Calculate from Easting / Northing (automatic)</option>
+      <option value="typed">I type the distance X of each point</option>
+    </select>
+    <div class="small" id="dhelp">Points are projected onto their best-fit line, so they are placed in the right order.</div>
+  </div>
+
+  <div class="card">
+    <h2><span class="n">3</span>Colours &amp; style <span class="th">สีและรูปแบบ</span></h2>
+    <label>Colour map</label>
+    <select id="cmap"></select>
+    <div class="bar" id="cbar"></div>
+    <div id="customSw" style="display:none" class="cus">
+      <div class="small">Pick a colour for each resistivity value. Colours blend smoothly between the values. Add as many as you like; values are sorted automatically.</div>
+      <div id="cusRows"></div>
+      <div class="row" style="margin-top:6px"><button id="cusAdd" style="flex:0 0 auto">+ Add colour</button><button id="cusData" style="flex:0 0 auto">Spread over data range</button><button id="cusRange" style="flex:0 0 auto">Set scale min/max to first/last</button></div>
+    </div>
+    <div class="row">
+      <div><label>Reverse colours</label><select id="rev"><option value="0">No</option><option value="1">Yes</option></select></div>
+      <div><label>Colour scale</label><select id="scale"><option value="log">Logarithmic</option><option value="lin">Linear</option></select></div>
+    </div>
+    <label>Minimum and maximum of the colour scale</label>
+    <select id="rmode">
+      <option value="auto">Automatic – lowest and highest value in the data</option>
+      <option value="nice">Automatic, rounded (1-2-5 steps, e.g. 13.5 → 10, 4156 → 5000)</option>
+      <option value="manual">Manual – I type min and max</option>
+    </select>
+    <div class="row">
+      <div><label>Min ρ (Ω·m)</label><input type="number" id="vmin" disabled placeholder="from data"></div>
+      <div><label>Max ρ (Ω·m)</label><input type="number" id="vmax" disabled placeholder="from data"></div>
+    </div>
+    <div class="row">
+      <div><label>Look</label><select id="look"><option value="band">Coloured bands</option><option value="smooth">Smooth gradient</option></select></div>
+      <div><label>Number of bands</label><input type="number" id="nlev" value="16" min="4" max="40"></div>
+      <div><label>Contour lines</label><select id="lines"><option value="1">Yes</option><option value="0">No</option></select></div>
+    </div>
+    <label>Interpolation method</label>
+    <select id="imeth">
+      <option value="nn">Natural neighbour (Sibson) – smooth, stays inside data range</option>
+      <option value="linear">Linear (triangles / TIN) – honest, angular</option>
+      <option value="rbf">Smooth surface (Gaussian kernel, kriging-like) – very smooth, flattens detail</option>
+      <option value="idw">Inverse distance weighting (IDW)</option>
+      <option value="nearest">Nearest neighbour – blocky</option>
+    </select>
+    <div class="row" id="idwRow" style="display:none"><div><label>IDW power (higher = more local)</label><input type="number" id="idwp" value="2" min="0.5" max="6" step="0.5"></div></div>
+    <div class="row">
+      <div><label>Extra smoothing of the picture</label><select id="blur"><option value="0">None</option><option value="1" selected>Light</option><option value="2.5">Medium</option><option value="5">Strong</option><option value="9">Very strong</option></select></div>
+      <div><label>Ground surface (real elevation)</label><select id="topo"><option value="spline">Smooth curve through stations</option><option value="linear">Straight lines between stations</option></select></div>
+    </div>
+    <details><summary>More settings</summary>
+      <div class="row">
+        <div><label>Grid detail</label><select id="gres"><option value="220">Fast</option><option value="300" selected>Normal</option><option value="420">Fine (slower)</option></select></div>
+        <div><label>Vertical exaggeration (blank = fit window)</label><input type="number" id="vex" min="0.1" step="0.5" placeholder="auto"></div>
+      </div>
+      <div class="row">
+        <div><label>Groundwater on section (after screening)</label><select id="gwx"><option value="1">Show band, wells, depth hints</option><option value="0">Hide</option></select></div>
+        <div><label>Station names</label><select id="stlab"><option value="1">Show</option><option value="0">Hide</option></select></div>
+        <div><label>Vertical axis</label><select id="yax"><option value="elev">Elevation (m) = ground − AB/2</option><option value="depth">AB/2 (m, down from surface)</option></select></div>
+      </div>
+    </details>
+    <label>Title</label><input type="text" id="title" value="Pseudo cross-section">
+    <div style="margin-top:12px"><button class="pri" id="drawBtn" style="width:100%">Draw pseudo cross-section</button></div>
+    <div id="drawMsg"></div>
+  </div>
+
+  <div class="card small">
+    <b>Notes.</b> The picture shows <i>apparent</i> resistivity (ρa) against AB/2. It is not an inverted model, so depths are pseudo-depths. <span id="interpNote"></span> The picture is cut off at the ground surface at the top and below the deepest readings at the bottom. Repeated AB/2 values at a station (when MN changes) are both used.
+  </div>
+</div>
+
+<div>
+  <div class="card" id="outcard">
+    <h2>Result <span class="th">ผลลัพธ์</span></h2>
+    <canvas id="cv" width="1200" height="760" style="display:none"></canvas>
+    <div id="res"></div>
+    <div class="row" style="margin-top:10px" id="outBtns" hidden>
+      <button id="dlBtn" class="pri">Download PNG</button>
+      <button id="cpBtn">Copy image</button>
+    </div>
+    <div class="small" id="saveHint" hidden>If the Download button does nothing in your viewer, right-click (or long-press) the picture and choose “Save image as…”.</div>
+    <div class="small" id="blank">Your section will appear here.</div>
+  </div>
+</div>
+</div>
+
+<script>
+"use strict";
+/* ---------- colour maps ---------- */
+const CMAPS={
+ 'Turbo (rainbow, default)':['#30123b','#4662d7','#36aaf9','#1ae4b6','#72fe5e','#c7ef34','#faba39','#f66b19','#ca2a04','#7a0403'],
+ 'Jet':['#00007f','#0000ff','#007fff','#00ffff','#7fff7f','#ffff00','#ff7f00','#ff0000','#7f0000'],
+ 'Rainbow':['#6e40aa','#4c6edb','#23abd8','#1ac7c2','#3be08e','#8ef059','#d4e04a','#fcb43d','#f4652f','#d12d2d'],
+ 'Blue → Red (RdYlBu)':['#313695','#4575b4','#74add1','#abd9e9','#e0f3f8','#fee090','#fdae61','#f46d43','#d73027','#a50026'],
+ 'Cool–warm':['#3b4cc0','#6788ee','#9abbff','#c9d7f0','#edd1c2','#f7a889','#ee7650','#d24b40','#b40426'],
+ 'Viridis':['#440154','#482878','#3e4989','#31688e','#26828e','#1f9e89','#35b779','#6ece58','#b5de2b','#fde725'],
+ 'Plasma':['#0d0887','#46039f','#7201a8','#9c179e','#bd3786','#d8576b','#ed7953','#fb9f3a','#fdca26','#f0f921'],
+ 'Inferno':['#000004','#1b0c41','#4a0c6b','#781c6d','#a52c60','#cf4446','#ed6925','#fb9b06','#f7d13d','#fcffa4'],
+ 'Terrain':['#333399','#0d7fbf','#00b2a0','#7cc86e','#e0d97a','#a0805a','#a69e98','#ffffff'],
+ 'Blues':['#f7fbff','#deebf7','#c6dbef','#9ecae1','#6baed6','#4292c6','#2171b5','#08519c','#08306b'],
+ 'Yellow–Orange–Red':['#ffffcc','#ffeda0','#fed976','#feb24c','#fd8d3c','#fc4e2a','#e31a1c','#bd0026','#800026'],
+ 'Greyscale':['#ffffff','#000000'],
+ 'Custom (pick colours at ρ values)':null
+};
+const $=id=>document.getElementById(id);
+function hex2rgb(h){return [1,3,5].map(i=>parseInt(h.substr(i,2),16))}
+let CUS=[{v:10,c:'#2b4fd8'},{v:30,c:'#2fbf9b'},{v:100,c:'#f3e34b'},{v:300,c:'#f08a24'},{v:1000,c:'#c8201a'}];
+window.__rng=null;
+function stops(){
+  const name=$('cmap').value; let s=CMAPS[name],pos=null;
+  if(!s){
+    const c=CUS.filter(q=>isFinite(q.v)&&q.v>0).sort((x,y)=>x.v-y.v); if(c.length<2) c.push({v:(c[0]?c[0].v:1)*10,c:'#ffffff'},...(c.length?[]:[{v:100,c:'#000000'}]));
+    const log=$('scale').value==='log',f=v=>log?Math.log10(v):v;
+    const r=window.__rng||{vmin:c[0].v,vmax:c[c.length-1].v}, lo=f(r.vmin),hi=f(r.vmax);
+    s=c.map(q=>q.c); pos=c.map(q=>Math.min(1,Math.max(0,(f(q.v)-lo)/(hi-lo))));
+  }
+  s=s.map(hex2rgb); if($('rev').value==='1') s=s.slice().reverse(); s.pos=pos; return s;
+}
+function colorAt(s,t){ t=Math.min(1,Math.max(0,t));
+  if(s.pos){const P=s.pos; if(t<=P[0]) return s[0].slice(); if(t>=P[P.length-1]) return s[s.length-1].slice(); let i=1; while(P[i]<t) i++; const f=(P[i]-P[i-1])>1e-9?(t-P[i-1])/(P[i]-P[i-1]):1; return [0,1,2].map(k=>Math.round(s[i-1][k]+(s[i][k]-s[i-1][k])*f));}
+  const p=t*(s.length-1),i=Math.min(s.length-2,Math.floor(p)),f=p-i;
+  return [0,1,2].map(k=>Math.round(s[i][k]+(s[i+1][k]-s[i][k])*f)); }
+function stopPct(s,i){return (s.pos?s.pos[i]:i/(s.length-1))*100;}
+function cssGrad(){ const s=stops(); return 'linear-gradient(to right,'+s.map((c,i)=>`rgb(${c}) ${stopPct(s,i).toFixed(1)}%`).join(',')+')'; }
+function cusRender(){
+  const box=$('cusRows'); box.innerHTML='';
+  CUS.forEach((q,i)=>{const r=document.createElement('div');r.className='cr';
+    r.innerHTML=`<input type="color" value="${q.c}"><input type="number" min="0" step="any" value="${q.v}"><span>Ω·m</span><button title="Remove">✕</button>`;
+    r.children[0].oninput=e=>{q.c=e.target.value;cusChanged();};
+    r.children[1].onchange=e=>{q.v=parseFloat(e.target.value);CUS.sort((x,y)=>x.v-y.v);cusRender();cusChanged();};
+    r.children[3].onclick=()=>{if(CUS.length<=2)return;CUS.splice(i,1);cusRender();cusChanged();};
+    box.appendChild(r);});
+}
+function cusChanged(){refreshBar(); if(window.__drawn) draw(true);}
+$('cusAdd').onclick=()=>{const l=CUS[CUS.length-1];CUS.push({v:Math.round(l.v*2),c:l.c});CUS.sort((x,y)=>x.v-y.v);cusRender();cusChanged();};
+$('cusData').onclick=()=>{const r=window.__rng; if(!r){return;} const n=CUS.length;CUS.forEach((q,i)=>{q.v=+(Math.pow(10,Math.log10(r.vmin)+(Math.log10(r.vmax)-Math.log10(r.vmin))*i/(n-1))).toPrecision(3);});cusRender();cusChanged();};
+$('cusRange').onclick=()=>{const c=CUS.slice().sort((x,y)=>x.v-y.v);$('rmode').value='manual';$('vmin').disabled=false;$('vmax').disabled=false;$('vmin').value=c[0].v;$('vmax').value=c[c.length-1].v;window.__rng={vmin:c[0].v,vmax:c[c.length-1].v};refreshBar();if(window.__drawn)draw(true);};
+cusRender();
+for(const k of Object.keys(CMAPS)){const o=document.createElement('option');o.textContent=k;$('cmap').appendChild(o)}
+function refreshBar(){ $('cbar').style.background=cssGrad(); $('customSw').style.display=CMAPS[$('cmap').value]?'none':'block'; }
+['cmap','rev','scale'].forEach(i=>$(i).addEventListener('input',()=>{refreshBar(); if(window.__drawn) draw(true)}));
+refreshBar();
+
+/* ---------- data model ---------- */
+let points=[]; // {id,name,x,e,n,elev,text,on,src}
+let uid=0;
+function newPt(o){ return Object.assign({id:++uid,name:'',x:'',e:'',n:'',elev:'',text:'',on:true,src:'manual'},o); }
+function fmtPairs(pairs){ return pairs.map(p=>p[0]+'\t'+p[1]).join('\n'); }
+
+function renderAll(){
+  // chips for file points
+  const lib=points.filter(p=>p.src==='file');
+  $('libWrap').style.display=lib.length?'block':'none';
+  $('chips').innerHTML='';
+  lib.forEach(p=>{const c=document.createElement('span');c.className='chip'+(p.on?' on':'');c.textContent=p.name;
+    c.onclick=()=>{p.on=!p.on;renderAll()};$('chips').appendChild(c)});
+  $('selN').textContent=points.filter(p=>p.on).length;
+  if(typeof mapDraw==='function'&&typeof mc!=='undefined') mapDraw();
+  if(typeof gwRefreshUI==='function') gwRefreshUI();
+  // cards
+  $('cards').innerHTML='';
+  points.filter(p=>p.on).forEach(p=>{
+    const d=document.createElement('div');d.className='pt';
+    d.innerHTML=`<div class="hd"><span>${esc(p.name||'(unnamed point)')}</span><button class="x" title="Remove">×</button></div>
+     <div class="g4">
+      <div><label>Name</label><input type="text" data-k="name" value="${esc(p.name)}"></div>
+      <div><label>X (m)</label><input type="number" data-k="x" value="${p.x}" placeholder="auto"></div>
+      <div><label>Easting</label><input type="number" data-k="e" value="${p.e}"></div>
+      <div><label>Northing</label><input type="number" data-k="n" value="${p.n}"></div>
+     </div>
+     <div class="row"><div><label>Ground elevation (m)</label><input type="number" data-k="elev" value="${p.elev}"></div></div>
+     <label>AB/2 and ρa — paste two columns from Excel, one row per reading (AB/2 first, ρa last)</label>
+     <textarea data-k="text" spellcheck="false">${esc(p.text)}</textarea>`;
+    d.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{p[inp.dataset.k]=inp.value}));
+    d.querySelector('.x').onclick=()=>{ if(p.src==='file'){p.on=false}else{points=points.filter(q=>q!==p)} renderAll(); };
+    $('cards').appendChild(d);
+  });
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+$('addBtn').onclick=()=>{points.push(newPt({name:'P'+(points.filter(p=>p.on).length+1)}));renderAll()};
+$('dmode').onchange=()=>{ $('dhelp').textContent=$('dmode').value==='coords'?'Points are projected onto their best-fit line, so they are placed in the right order.':'Type X (metres along the section) for every point; points are drawn in order of X.'; };
+
+$('exBtn').onclick=()=>{
+  points=[];
+  const ex=[['P1',0,171,[[1,48.6],[2,59.4],[5,59.5],[10,100.1],[20,203.2],[40,682.2],[80,879.3],[150,2647.5]]],
+            ['P2',25,171,[[1,20.2],[2,37.1],[5,44],[10,60],[20,150],[40,300],[80,500],[150,900]]],
+            ['P3',50,172,[[1,30],[2,35],[5,50],[10,90],[20,180],[40,380],[80,650],[150,1000]]]];
+  ex.forEach(e=>points.push(newPt({name:e[0],x:e[1],elev:e[2],text:fmtPairs(e[3])})));
+  $('dmode').value='typed';$('dmode').onchange();
+  renderAll(); msg('loadMsg','Example loaded (3 points). Click “Draw” below.','info');
+};
+function msg(id,t,cls){ $(id).innerHTML=t?`<div class="msg ${cls}">${t}</div>`:''; }
+
+/* ---------- Excel / CSV loading ---------- */
+$('file').onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    if(typeof XLSX==='undefined') throw new Error('The Excel reader could not be loaded (no internet?). Use “Add a point by pasting” instead.');
+    const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+    const got=[]; const num=v=>typeof v==='number'&&isFinite(v);
+    for(const sn of wb.SheetNames){
+      const ws=wb.Sheets[sn]; const g=a=>ws[a]?ws[a].v:undefined;
+      // (a) VES sheet like the Department's field form
+      if(typeof g('L5')==='string' && num(g('B7'))){
+        const pairs=[]; for(let r=7;r<=80;r++){const a=g('B'+r),h=g('H'+r); if(num(a)&&num(h)) pairs.push([a,h]);}
+        if(pairs.length>=3) got.push({name:String(g('L5')).trim(),e:num(g('V5'))?g('V5'):'',n:num(g('V6'))?g('V6'):'',elev:num(g('P6'))?g('P6'):'',pairs});
+      }
+    }
+    if(!got.length){
+      // (b) long table: X, Y, Z, Elev, Detailed
+      const ws=wb.Sheets[wb.SheetNames[0]]; const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
+      const head=(rows[0]||[]).map(s=>String(s).trim().toLowerCase());
+      const ix=head.indexOf('x'),iy=head.indexOf('y'),iz=head.indexOf('z'),ie=head.findIndex(h=>h.startsWith('elev')),idn=head.findIndex(h=>h.startsWith('detail')||h.startsWith('name')||h.startsWith('point'));
+      if(ix<0||iy<0||iz<0) throw new Error('I could not recognise this file. Use the VES workbook (one sheet per point) or a table with columns X, Y (AB/2), Z (ρa), Elev, Detailed.');
+      let cur=null,k=0;
+      for(let r=1;r<rows.length;r++){const R=rows[r]; if(!R||!num(R[ix])||!num(R[iy])||!num(R[iz])) continue;
+        const nm=idn>=0&&R[idn]?String(R[idn]).trim():'';
+        if(!cur||nm||R[ix]!==cur.x){ if(cur) got.push(cur); cur={x:R[ix],name:nm||('P'+(++k)),elev:ie>=0&&num(R[ie])?R[ie]:'',pairs:[]}; }
+        cur.pairs.push([R[iy],R[iz]]);
+      }
+      if(cur) got.push(cur);
+      $('dmode').value='typed';$('dmode').onchange();
+    }
+    if(!got.length) throw new Error('No sounding data found in this file.');
+    points=[];
+    got.forEach(g=>points.push(newPt({src:'file',on:false,name:g.name,x:g.x??'',e:g.e??'',n:g.n??'',elev:g.elev,text:fmtPairs(g.pairs)})));
+    // a form file already is a section: select everything
+    if(got[0].x!==undefined) points.filter(p=>p.src==='file').forEach(p=>p.on=true);
+    renderAll(); msg('loadMsg',`Loaded ${got.length} sounding point(s) from “${esc(f.name)}”. ${got[0].x!==undefined?'All are selected.':'Click the points above that belong to the same line (3 or more).'}`,'ok');
+  }catch(err){ msg('loadMsg',esc(err.message),'err'); }
+  e.target.value='';
+};
+
+/* ---------- parsing ---------- */
+function parsePairs(t){
+  const out=[]; t.split(/\r?\n/).forEach(l=>{
+    const nums=l.split(/[\t,; ]+/).map(s=>s.trim()).filter(s=>s!=='').map(Number).filter(v=>isFinite(v));
+    if(nums.length>=2) out.push([nums[0],nums[nums.length-1]]);
+  });
+  return out.filter(p=>p[0]>0&&p[1]>0);
+}
+function gather(){
+  const act=points.filter(p=>p.on);
+  if(act.length<3) throw new Error('Select or add at least 3 points (you have '+act.length+').');
+  const mode=$('dmode').value; const P=act.map(p=>({id:p.id,name:p.name||'?',pairs:parsePairs(p.text),elev:p.elev===''?0:+p.elev,x:p.x===''?NaN:+p.x,e:p.e===''?NaN:+p.e,n:p.n===''?NaN:+p.n}));
+  P.forEach(p=>{ if(p.pairs.length<3) throw new Error(`Point “${p.name}” has fewer than 3 valid AB/2–ρa rows.`); });
+  if(mode==='coords'){
+    if(P.some(p=>!isFinite(p.e)||!isFinite(p.n))) throw new Error('Some points have no Easting/Northing. Fill them in, or switch step 2 to “I type the distance X”.');
+    const mx=P.reduce((s,p)=>s+p.e,0)/P.length,my=P.reduce((s,p)=>s+p.n,0)/P.length;
+    let sxx=0,syy=0,sxy=0; P.forEach(p=>{const a=p.e-mx,b=p.n-my;sxx+=a*a;syy+=b*b;sxy+=a*b});
+    const th=0.5*Math.atan2(2*sxy,sxx-syy), dx=Math.cos(th), dy=Math.sin(th);
+    P.forEach(p=>p.x=(p.e-mx)*dx+(p.n-my)*dy);
+    if((Math.abs(dx)>=Math.abs(dy)?dx:dy)<0) P.forEach(p=>p.x=-p.x);  // west→east, or south→north for N–S lines
+    const m=Math.min(...P.map(p=>p.x)); P.forEach(p=>p.x=Math.round((p.x-m)*10)/10);
+  } else {
+    if(P.some(p=>!isFinite(p.x))) throw new Error('Type a distance X for every point (or switch step 2 to automatic).');
+  }
+  if(new Set(P.map(p=>p.x)).size<2) throw new Error('All points have the same X – the section would have no width.');
+  return P;
+}
+
+/* ---------- natural neighbour (discrete Sibson) ---------- */
+function naturalNeighbour(px,py,pv,x0,x1,y0,y1,Nx,Ny){
+  const dx=(x1-x0)/(Nx-1),dy=(y1-y0)/(Ny-1),n=px.length;
+  const D=new Float64Array(Nx*Ny),O=new Int32Array(Nx*Ny);
+  for(let i=0;i<Ny;i++){const y=y0+i*dy;for(let j=0;j<Nx;j++){const x=x0+j*dx;let b=1e300,bi=0;
+    for(let k=0;k<n;k++){const a=px[k]-x,c=py[k]-y,d=a*a+c*c;if(d<b){b=d;bi=k}}
+    D[i*Nx+j]=Math.sqrt(b);O[i*Nx+j]=bi;}}
+  const num=new Float64Array(Nx*Ny),den=new Float64Array(Nx*Ny);
+  for(let i=0;i<Ny;i++){const y=y0+i*dy;for(let j=0;j<Nx;j++){
+    const r=D[i*Nx+j]; if(r===0) continue; const v=pv[O[i*Nx+j]],x=x0+j*dx,r2=r*r;
+    const ri=Math.ceil(r/dy),rj=Math.ceil(r/dx);
+    const i0=Math.max(0,i-ri),i1=Math.min(Ny-1,i+ri),j0=Math.max(0,j-rj),j1=Math.min(Nx-1,j+rj);
+    for(let a=i0;a<=i1;a++){const yy=y0+a*dy-y,yq=yy*yy;for(let b=j0;b<=j1;b++){const xx=x0+b*dx-x;
+      if(xx*xx+yq<r2){num[a*Nx+b]+=v;den[a*Nx+b]+=1;}}}
+  }}
+  const G=new Float64Array(Nx*Ny);
+  for(let q=0;q<G.length;q++) G[q]=den[q]>0?num[q]/den[q]:(D[q]===0?pv[O[q]]:NaN);
+  return G;
+}
+function hull(pts){ pts=pts.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lo=[];for(const p of pts){while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0)lo.pop();lo.push(p)}
+  const up=[];for(let i=pts.length-1;i>=0;i--){const p=pts[i];while(up.length>=2&&cr(up[up.length-2],up[up.length-1],p)<=0)up.pop();up.push(p)}
+  lo.pop();up.pop();return lo.concat(up);}
+function inHull(h,x,y){ for(let i=0;i<h.length;i++){const a=h[i],b=h[(i+1)%h.length]; if((b[0]-a[0])*(y-a[1])-(b[1]-a[1])*(x-a[0])<-1e-9) return false;} return true; }
+
+
+/* ---------- interpolation toolbox ---------- */
+function nearestGrid(px,py,x0,x1,y0,y1,Nx,Ny){
+  const dx=(x1-x0)/(Nx-1),dy=(y1-y0)/(Ny-1),n=px.length,D=new Float64Array(Nx*Ny),O=new Int32Array(Nx*Ny);
+  for(let i=0;i<Ny;i++){const y=y0+i*dy;for(let j=0;j<Nx;j++){const x=x0+j*dx;let b=1e300,bi=0;
+    for(let k=0;k<n;k++){const a=px[k]-x,c=py[k]-y,d=a*a+c*c;if(d<b){b=d;bi=k}}D[i*Nx+j]=Math.sqrt(b);O[i*Nx+j]=bi;}}
+  return {D,O};
+}
+function idwGrid(px,py,pv,x0,x1,y0,y1,Nx,Ny,pw){
+  const dx=(x1-x0)/(Nx-1),dy=(y1-y0)/(Ny-1),n=px.length,G=new Float64Array(Nx*Ny),h=pw/2;
+  for(let i=0;i<Ny;i++){const y=y0+i*dy;for(let j=0;j<Nx;j++){const x=x0+j*dx;let sw=0,sv=0,ex=NaN;
+    for(let k=0;k<n;k++){const a=px[k]-x,c=py[k]-y,d2=a*a+c*c; if(d2<1e-12){ex=pv[k];break} const w=1/Math.pow(d2,h);sw+=w;sv+=w*pv[k];}
+    G[i*Nx+j]=isNaN(ex)?sv/sw:ex;}}
+  return G;
+}
+function delaunay(px,py){
+  const n=px.length; let mnx=1e300,mny=1e300,mxx=-1e300,mxy=-1e300;
+  for(let i=0;i<n;i++){mnx=Math.min(mnx,px[i]);mxx=Math.max(mxx,px[i]);mny=Math.min(mny,py[i]);mxy=Math.max(mxy,py[i]);}
+  const dm=Math.max(mxx-mnx,mxy-mny,1)*20,cx=(mnx+mxx)/2,cy=(mny+mxy)/2;
+  const X=Array.from(px).concat([cx-dm,cx,cx+dm]),Y=Array.from(py).concat([cy-dm,cy+dm,cy-dm]);
+  const circ=(a,b,c)=>{const ax=X[a],ay=Y[a],bx=X[b],by=Y[b],cx_=X[c],cy_=Y[c];const d=2*(ax*(by-cy_)+bx*(cy_-ay)+cx_*(ay-by));
+    if(Math.abs(d)<1e-18) return null; const ux=((ax*ax+ay*ay)*(by-cy_)+(bx*bx+by*by)*(cy_-ay)+(cx_*cx_+cy_*cy_)*(ay-by))/d,uy=((ax*ax+ay*ay)*(cx_-bx)+(bx*bx+by*by)*(ax-cx_)+(cx_*cx_+cy_*cy_)*(bx-ax))/d;
+    return [ux,uy,(ax-ux)*(ax-ux)+(ay-uy)*(ay-uy)];};
+  let T=[{v:[n,n+1,n+2],c:circ(n,n+1,n+2)}];
+  for(let p=0;p<n;p++){
+    const bad=[],keep=[]; T.forEach(t=>{ (t.c&&((X[p]-t.c[0])**2+(Y[p]-t.c[1])**2<t.c[2]*(1-1e-12)))?bad.push(t):keep.push(t)});
+    const edges=new Map(); bad.forEach(t=>{for(let k=0;k<3;k++){const a=t.v[k],b=t.v[(k+1)%3],key=a<b?a+','+b:b+','+a;edges.set(key,(edges.get(key)||0)+1)}});
+    edges.forEach((c,key)=>{ if(c===1){const [a,b]=key.split(',').map(Number);const cc=circ(a,b,p); if(cc) keep.push({v:[a,b,p],c:cc});}});
+    T=keep;
+  }
+  return {tris:T.filter(t=>t.v.every(i=>i<n)).map(t=>t.v)};
+}
+function linearGrid(px,py,pv,x0,x1,y0,y1,Nx,Ny){
+  const G=new Float64Array(Nx*Ny).fill(NaN),dx=(x1-x0)/(Nx-1),dy=(y1-y0)/(Ny-1),{tris}=delaunay(px,py);
+  tris.forEach(([a,b,c])=>{
+    const xa=px[a],ya=py[a],xb=px[b],yb=py[b],xc=px[c],yc=py[c],den=(yb-yc)*(xa-xc)+(xc-xb)*(ya-yc); if(Math.abs(den)<1e-14) return;
+    const j0=Math.max(0,Math.floor((Math.min(xa,xb,xc)-x0)/dx)),j1=Math.min(Nx-1,Math.ceil((Math.max(xa,xb,xc)-x0)/dx));
+    const i0=Math.max(0,Math.floor((Math.min(ya,yb,yc)-y0)/dy)),i1=Math.min(Ny-1,Math.ceil((Math.max(ya,yb,yc)-y0)/dy));
+    for(let i=i0;i<=i1;i++){const y=y0+i*dy;for(let j=j0;j<=j1;j++){const x=x0+j*dx;
+      const l1=((yb-yc)*(x-xc)+(xc-xb)*(y-yc))/den,l2=((yc-ya)*(x-xc)+(xa-xc)*(y-yc))/den,l3=1-l1-l2;
+      if(l1>=-1e-9&&l2>=-1e-9&&l3>=-1e-9) G[i*Nx+j]=l1*pv[a]+l2*pv[b]+l3*pv[c];}}
+  });
+  return G;
+}
+function rbfGrid(px,py,pv,x0,x1,y0,y1,Nx,Ny){
+  // Gaussian-kernel smooth surface (kriging-like, positive definite, with a small nugget)
+  const n=px.length; if(n>1300) throw new Error('Too many readings ('+n+') for the smooth-surface method – choose Natural neighbour or Linear.');
+  const area=(Math.max(...px)-Math.min(...px)+1)*(Math.max(...py)-Math.min(...py)+1),len=3*Math.sqrt(area/n),il=1/(len*len);
+  const mean=pv.reduce((a,b)=>a+b,0)/n,A=new Float64Array(n*n),b=new Float64Array(n);
+  for(let i=0;i<n;i++){b[i]=pv[i]-mean;for(let j=0;j<n;j++){const a=px[i]-px[j],c=py[i]-py[j];A[i*n+j]=Math.exp(-(a*a+c*c)*il)+(i===j?0.02:0);}}
+  for(let k=0;k<n;k++){ // Cholesky-free Gaussian elimination (matrix is symmetric positive definite, no pivoting needed)
+    const piv=A[k*n+k];for(let i=k+1;i<n;i++){const f=A[i*n+k]/piv;if(f===0)continue;for(let j=k;j<n;j++)A[i*n+j]-=f*A[k*n+j];b[i]-=f*b[k];}
+  }
+  const w=new Float64Array(n);for(let i=n-1;i>=0;i--){let t=b[i];for(let j=i+1;j<n;j++)t-=A[i*n+j]*w[j];w[i]=t/A[i*n+i];}
+  const G=new Float64Array(Nx*Ny),dx=(x1-x0)/(Nx-1),dy=(y1-y0)/(Ny-1);let lo=1e300,hi=-1e300;for(const v of pv){lo=Math.min(lo,v);hi=Math.max(hi,v)}
+  for(let i=0;i<Ny;i++){const y=y0+i*dy;for(let j=0;j<Nx;j++){const x=x0+j*dx;let v=mean;for(let k=0;k<n;k++){const a=px[k]-x,c=py[k]-y;v+=w[k]*Math.exp(-(a*a+c*c)*il);}G[i*Nx+j]=Math.min(hi,Math.max(lo,v));}}
+  return G;
+}
+function blurGrid(G,Nx,Ny,sig){
+  if(!(sig>0)) return G; const r=Math.ceil(sig*3),k=[];for(let i=-r;i<=r;i++)k.push(Math.exp(-i*i/(2*sig*sig)));
+  const pass=(src,w,horiz)=>{const out=new Float64Array(src.length);
+    for(let i=0;i<Ny;i++)for(let j=0;j<Nx;j++){let sv=0,sw=0;for(let t=-r;t<=r;t++){const ii=horiz?i:i+t,jj=horiz?j+t:j;if(ii<0||ii>=Ny||jj<0||jj>=Nx)continue;const q=ii*Nx+jj,m=w[q];if(m){sv+=k[t+r]*src[q]*m;sw+=k[t+r]*m}}
+      out[i*Nx+j]=sw?sv/sw:NaN;} return out;};
+  const m=new Float64Array(G.length);for(let q=0;q<G.length;q++)m[q]=isNaN(G[q])?0:1;
+  const a=pass(Float64Array.from(G,v=>isNaN(v)?0:v),m,true),m2=Float64Array.from(a,v=>isNaN(v)?0:1),b=pass(Float64Array.from(a,v=>isNaN(v)?0:v),m2,false);
+  return Float64Array.from(b,(v,q)=>m[q]?v:NaN);
+}
+function lowerChain(pts){ pts=pts.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lo=[];for(const p of pts){while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0)lo.pop();lo.push(p)}return lo;}
+function interp1(ch,x){ if(x<=ch[0][0]) return ch[0][1]; for(let i=1;i<ch.length;i++){ if(x<=ch[i][0]){const t=(x-ch[i-1][0])/((ch[i][0]-ch[i-1][0])||1);return ch[i-1][1]+t*(ch[i][1]-ch[i-1][1]);}} return ch[ch.length-1][1]; }
+function cubicSpline(xs,ys){ const n=xs.length; if(n<3) return x=>interp1(xs.map((v,i)=>[v,ys[i]]),x);
+  const h=[],al=[0];for(let i=0;i<n-1;i++)h.push(xs[i+1]-xs[i]);
+  for(let i=1;i<n-1;i++)al.push(3*((ys[i+1]-ys[i])/h[i]-(ys[i]-ys[i-1])/h[i-1]));
+  const l=[1],mu=[0],z=[0];for(let i=1;i<n-1;i++){l.push(2*(xs[i+1]-xs[i-1])-h[i-1]*mu[i-1]);mu.push(h[i]/l[i]);z.push((al[i]-h[i-1]*z[i-1])/l[i]);}
+  const c=new Array(n).fill(0),b=new Array(n).fill(0),d=new Array(n).fill(0);
+  for(let j=n-2;j>=0;j--){c[j]=z[j]-mu[j]*c[j+1];b[j]=(ys[j+1]-ys[j])/h[j]-h[j]*(c[j+1]+2*c[j])/3;d[j]=(c[j+1]-c[j])/(3*h[j]);}
+  return x=>{let i=n-2;for(let k=0;k<n-1;k++)if(x<=xs[k+1]){i=k;break;}const t=x-xs[i];return ys[i]+b[i]*t+c[i]*t*t+d[i]*t*t*t;};
+}
+
+/* ---------- drawing ---------- */
+let lastDraw=null;
+function niceTicks(lo,hi,n){ const span=hi-lo,raw=span/n,p=Math.pow(10,Math.floor(Math.log10(raw))),m=raw/p; const st=(m<1.5?1:m<3?2:m<7?5:10)*p; const t=[]; for(let v=Math.ceil(lo/st)*st;v<=hi+1e-9;v+=st)t.push(Math.round(v/st)*st); return t; }
+function draw(quiet){
+  try{
+    msg('drawMsg','');
+    const P=gather(); window.__drawn=true;
+    const yax=$('yax').value;
+    // samples
+    const px=[],py=[],pv=[],log=$('scale').value==='log';
+    P.forEach(p=>{ const cnt={}; p.pairs.forEach(([ab,r])=>{ const c=cnt[ab]=(cnt[ab]||0)+1; const ya=ab*(1+0.003*(c-1)); px.push(p.x); py.push(yax==='elev'?p.elev-ya:-ya); pv.push(log?Math.log10(r):r); });});
+    const rhos=P.flatMap(p=>p.pairs.map(q=>q[1]));
+    const rmode=$('rmode').value; let vmin=Math.min(...rhos), vmax=Math.max(...rhos);
+    const nf=(v,up)=>{const e=Math.pow(10,Math.floor(Math.log10(v))),m=v/e,st=[1,2,5,10];let k=up?st.find(x=>x>=m-1e-9):[...st].reverse().find(x=>x<=m+1e-9);return k*e;};
+    if(rmode==='nice'){vmin=nf(vmin,false);vmax=nf(vmax,true);}
+    if(rmode==='manual'){ if($('vmin').value!=='') vmin=+$('vmin').value; if($('vmax').value!=='') vmax=+$('vmax').value; }
+    else { $('vmin').value=+vmin.toPrecision(4); $('vmax').value=+vmax.toPrecision(4); }
+    if(!(vmax>vmin)||(log&&vmin<=0)) throw new Error('Check Min/Max: Max must be larger than Min, and both above 0 for the log scale.');
+    const xs0=Math.min(...px),xs1=Math.max(...px);
+    // ground surface (real elevation): smooth curve through the stations
+    const st=P.map(p=>[p.x,yax==='elev'?p.elev:0]).sort((u,v)=>u[0]-v[0]); const sx=[],sy=[];
+    st.forEach(q=>{ if(!(sx.length&&Math.abs(q[0]-sx[sx.length-1])<1e-6)){sx.push(q[0]);sy.push(q[1]);} });
+    const ground=(yax==='depth')?(()=>0):($('topo').value==='spline'?cubicSpline(sx,sy):(x=>interp1(sx.map((v,i)=>[v,sy[i]]),x)));
+    // surface samples: shallowest reading is assigned to the ground itself
+    P.forEach(p=>{const f=p.pairs.reduce((m,q)=>q[0]<m[0]?q:m,p.pairs[0]); px.push(p.x); py.push(yax==='elev'?p.elev:0); pv.push(log?Math.log10(f[1]):f[1]);});
+    let ya0=Math.min(...py),ya1=-1e300; for(let k=0;k<=200;k++){ya1=Math.max(ya1,ground(xs0+(xs1-xs0)*k/200));}
+    ya1+=(ya1-ya0)*0.004;
+    // canvas geometry (vertical exaggeration)
+    const L=95,R=150,T=104,B=78,cv=$('cv'),pw=cv.width-L-R,vex=parseFloat($('vex').value);
+    let ph=578; if(vex>0) ph=Math.max(220,Math.min(1600,pw*(ya1-ya0)/(xs1-xs0)*vex)); cv.height=Math.round(T+ph+B);
+    const Nx=+$('gres').value||300, Ny=Math.max(120,Math.min(560,Math.round(Nx*ph/pw)));
+    const dx=(xs1-xs0)/(Nx-1),dy=(ya1-ya0)/(Ny-1);
+    const meth=$('imeth').value; let G;
+    if(meth==='nn') G=naturalNeighbour(px,py,pv,xs0,xs1,ya0,ya1,Nx,Ny);
+    else if(meth==='linear') G=linearGrid(px,py,pv,xs0,xs1,ya0,ya1,Nx,Ny);
+    else if(meth==='idw') G=idwGrid(px,py,pv,xs0,xs1,ya0,ya1,Nx,Ny,+$('idwp').value||2);
+    else if(meth==='rbf') G=rbfGrid(px,py,pv,xs0,xs1,ya0,ya1,Nx,Ny);
+    else { const {O}=nearestGrid(px,py,xs0,xs1,ya0,ya1,Nx,Ny); G=Float64Array.from(O,k=>pv[k]); }
+    if(G.some(v=>isNaN(v))){ const {O}=nearestGrid(px,py,xs0,xs1,ya0,ya1,Nx,Ny); for(let q=0;q<G.length;q++) if(isNaN(G[q])) G[q]=pv[O[q]]; }
+    const lc=lowerChain(px.map((x,i)=>[x,py[i]]));
+    for(let j=0;j<Nx;j++){const x=xs0+j*dx,top=ground(x),bot=interp1(lc,x);for(let i=0;i<Ny;i++){const y=ya0+i*dy; if(y>top+1e-9||y<bot-1e-9) G[i*Nx+j]=NaN;}}
+    G=blurGrid(G,Nx,Ny,parseFloat($('blur').value));
+    // canvas
+    const W=cv.width,Hh=cv.height,ctx=cv.getContext('2d');
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,W,Hh);
+    window.__rng={vmin,vmax}; refreshBar(); const s=stops(); const lo=log?Math.log10(vmin):vmin,hi=log?Math.log10(vmax):vmax;
+    const nl=Math.max(4,Math.min(40,+$('nlev').value||16)),band=$('look').value==='band';
+    const tOf=v=>{let t=(v-lo)/(hi-lo); t=Math.min(1,Math.max(0,t)); if(band) t=(Math.min(nl-1,Math.floor(t*nl))+0.5)/nl; return t;};
+    const off=document.createElement('canvas');off.width=Nx;off.height=Ny;const oc=off.getContext('2d');const img=oc.createImageData(Nx,Ny);
+    for(let i=0;i<Ny;i++)for(let j=0;j<Nx;j++){const v=G[i*Nx+j],k=((Ny-1-i)*Nx+j)*4; if(isNaN(v)){img.data[k+3]=0;continue}
+      const c=colorAt(s,tOf(v)); img.data[k]=c[0];img.data[k+1]=c[1];img.data[k+2]=c[2];img.data[k+3]=255;}
+    oc.putImageData(img,0,0);
+    const X=x=>L+(x-xs0)/(xs1-xs0)*pw, Y=y=>T+(ya1-y)/(ya1-ya0)*ph;
+    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+    ctx.drawImage(off,L,T,pw,ph);
+    // contour lines
+    if($('lines').value==='1'){
+      ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=0.9;ctx.beginPath();
+      for(let k=1;k<nl;k++){ const lv=lo+(hi-lo)*k/nl;
+        for(let i=0;i<Ny-1;i++)for(let j=0;j<Nx-1;j++){
+          const a=G[i*Nx+j],b=G[i*Nx+j+1],c=G[(i+1)*Nx+j+1],d=G[(i+1)*Nx+j]; if(isNaN(a+b+c+d)) continue;
+          const pts=[]; const ed=(v1,v2,x1,y1,x2,y2)=>{ if((v1<lv)!==(v2<lv)){const f=(lv-v1)/(v2-v1);pts.push([x1+(x2-x1)*f,y1+(y2-y1)*f])}};
+          const xa=xs0+j*dx,xb=xa+dx,ya_=ya0+i*dy,yb=ya_+dy;
+          ed(a,b,xa,ya_,xb,ya_);ed(b,c,xb,ya_,xb,yb);ed(d,c,xa,yb,xb,yb);ed(a,d,xa,ya_,xa,yb);
+          if(pts.length>=2){ctx.moveTo(X(pts[0][0]),Y(pts[0][1]));ctx.lineTo(X(pts[1][0]),Y(pts[1][1]));
+            if(pts.length===4){ctx.moveTo(X(pts[2][0]),Y(pts[2][1]));ctx.lineTo(X(pts[3][0]),Y(pts[3][1]));}}
+        }}
+      ctx.stroke();
+    }
+    // ground surface line
+    if(yax==='elev'){ctx.strokeStyle='#3b2a1a';ctx.lineWidth=2.6;ctx.lineJoin='round';ctx.beginPath();for(let k=0;k<=240;k++){const x=xs0+(xs1-xs0)*k/240,px_=X(x),py_=Y(ground(x));k?ctx.lineTo(px_,py_):ctx.moveTo(px_,py_);}ctx.stroke();}
+    // axes
+    ctx.strokeStyle='#222';ctx.lineWidth=1.2;ctx.strokeRect(L,T,pw,ph);
+    ctx.fillStyle='#222';ctx.font='16px system-ui,sans-serif';ctx.textAlign='center';
+    niceTicks(xs0,xs1,8).forEach(t=>{const x=X(t);ctx.beginPath();ctx.moveTo(x,T+ph);ctx.lineTo(x,T+ph+6);ctx.stroke();ctx.fillText(t,x,T+ph+24)});
+    ctx.textAlign='right';
+    niceTicks(ya0,ya1,8).forEach(t=>{const y=Y(t);ctx.beginPath();ctx.moveTo(L-6,y);ctx.lineTo(L,y);ctx.stroke();ctx.fillText(yax==='depth'?(t===0?0:-t):t,L-10,y+5)});
+    ctx.textAlign='center';ctx.font='17px system-ui,sans-serif';ctx.fillText('Distance along section (m)',L+pw/2,Hh-24);
+    ctx.save();ctx.translate(26,T+ph/2);ctx.rotate(-Math.PI/2);ctx.fillText(yax==='elev'?'Elevation (m) = ground elevation − AB/2':'AB/2 (m)',0,0);ctx.restore();
+    ctx.font='bold 22px system-ui,sans-serif';ctx.fillText($('title').value||'',L+pw/2,34);
+    // stations
+    ctx.font='14px system-ui,sans-serif';
+    P.forEach(p=>{const x=X(p.x),y=Y(ground(p.x)); ctx.fillStyle='#000';ctx.beginPath();ctx.moveTo(x,y-1);ctx.lineTo(x-7,y-14);ctx.lineTo(x+7,y-14);ctx.closePath();ctx.fill();
+      if($('stlab').value==='1'){ctx.save();ctx.translate(x,y-20);ctx.rotate(-Math.PI/6);ctx.textAlign='left';ctx.fillText(p.name,0,0);ctx.restore();}});
+    // groundwater overlay (known wells + calibrated band)
+    if(typeof SCR!=='undefined'&&SCR&&$('gwx').value==='1'){ ctx.save();
+      const toV=v=>log?Math.log10(v):v;
+      const cont=(lv,col,lwid,dash)=>{ctx.save();ctx.strokeStyle=col;ctx.lineWidth=lwid;ctx.setLineDash(dash);ctx.beginPath();
+        for(let i=0;i<Ny-1;i++)for(let j=0;j<Nx-1;j++){const a=G[i*Nx+j],b=G[i*Nx+j+1],c=G[(i+1)*Nx+j+1],d=G[(i+1)*Nx+j]; if(isNaN(a+b+c+d)) continue;
+          const pts=[];const ed=(v1,v2,x1,y1,x2,y2)=>{if((v1<lv)!==(v2<lv)){const f=(lv-v1)/(v2-v1);pts.push([x1+(x2-x1)*f,y1+(y2-y1)*f])}};
+          const xa=xs0+j*dx,xb=xa+dx,ya_=ya0+i*dy,yb=ya_+dy;ed(a,b,xa,ya_,xb,ya_);ed(b,c,xb,ya_,xb,yb);ed(d,c,xa,yb,xb,yb);ed(a,d,xa,ya_,xa,yb);
+          if(pts.length>=2){ctx.moveTo(X(pts[0][0]),Y(pts[0][1]));ctx.lineTo(X(pts[1][0]),Y(pts[1][1]));if(pts.length===4){ctx.moveTo(X(pts[2][0]),Y(pts[2][1]));ctx.lineTo(X(pts[3][0]),Y(pts[3][1]));}}}
+        ctx.stroke();ctx.restore();};
+      cont(toV(SCR.lo),'#7b2cbf',2.8,[10,6]); cont(toV(SCR.hi),'#7b2cbf',2.8,[2,5]);
+      P.forEach(p=>{const q=points.find(z=>z.id===p.id); if(!q) return; const gx=X(p.x),g0=ground(p.x),Yd=d=>Y(yax==='elev'?g0-d:-d),w=wells.find(z=>z.id===q.id);
+        if(w&&w.type==='wet'){ctx.lineCap='butt';ctx.strokeStyle='#fff';ctx.lineWidth=13;ctx.beginPath();ctx.moveTo(gx,Yd(w.a));ctx.lineTo(gx,Yd(w.b));ctx.stroke();ctx.strokeStyle='#0b5fff';ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(gx,Yd(w.a));ctx.lineTo(gx,Yd(w.b));ctx.stroke();
+          ctx.fillStyle='#0b3d91';ctx.font='bold 13px system-ui,sans-serif';ctx.textAlign='left';{const lft=gx>ctx.canvas.width-200;ctx.textAlign=lft?'right':'left';ctx.fillText(w.a+'–'+w.b+' m',lft?gx-9:gx+9,(Yd(w.a)+Yd(w.b))/2+4);ctx.textAlign='left';}}
+        else if(w&&w.type==='dry'){ctx.strokeStyle='#fff';ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(gx,Yd(0));ctx.lineTo(gx,Yd(w.b));ctx.stroke();ctx.strokeStyle='#222';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(gx,Yd(0));ctx.lineTo(gx,Yd(w.b));ctx.stroke();
+          const ye=Yd(w.b);ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(gx-8,ye-8);ctx.lineTo(gx+8,ye+8);ctx.moveTo(gx+8,ye-8);ctx.lineTo(gx-8,ye+8);ctx.stroke();ctx.fillStyle='#222';ctx.font='bold 13px system-ui,sans-serif';ctx.textAlign='left';{const lft=gx>ctx.canvas.width-200;ctx.textAlign=lft?'right':'left';ctx.fillText('dry '+w.b+' m',lft?gx-10:gx+10,ye+4);ctx.textAlign='left';}}
+        else if(q.scr&&isFinite(q.scr.hint)){const yy=Yd(q.scr.hint);ctx.fillStyle='#7b2cbf';ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(gx,yy-8);ctx.lineTo(gx+7,yy);ctx.lineTo(gx,yy+8);ctx.lineTo(gx-7,yy);ctx.closePath();ctx.fill();ctx.stroke();
+          ctx.fillStyle='#4a1a7a';ctx.font='12px system-ui,sans-serif';ctx.textAlign='left';ctx.fillText('~'+Math.round(q.scr.hint)+' m',gx+9,yy+4);}
+      });
+      ctx.fillStyle='#4a1a7a';ctx.font='13px system-ui,sans-serif';ctx.textAlign='left';
+      ctx.fillText(`- - ρa = ${fmtN(SCR.lo)} Ω·m   ····  ρa = ${fmtN(SCR.hi)} Ω·m  (between them = water-bearing range of the known wells)    ▮ water found   ✕ dry   ◆ depth hint`,L,Hh-6); ctx.restore();
+    }
+    // colour bar
+    const bx=L+pw+34,bw=22,by=T,bh=ph; const gr=ctx.createLinearGradient(0,by+bh,0,by);
+    if(band){ for(let k=0;k<nl;k++){const c=colorAt(s,(k+.5)/nl);ctx.fillStyle=`rgb(${c})`;ctx.fillRect(bx,by+bh-(k+1)*bh/nl,bw,bh/nl+0.6);} }
+    else { s.forEach((c,i)=>gr.addColorStop(stopPct(s,i)/100,`rgb(${c})`)); ctx.fillStyle=gr;ctx.fillRect(bx,by,bw,bh); }
+    ctx.strokeStyle='#222';ctx.strokeRect(bx,by,bw,bh);
+    ctx.fillStyle='#222';ctx.font='14px system-ui,sans-serif';ctx.textAlign='left';
+    let tk; if(log){ tk=[]; for(let e=Math.floor(Math.log10(vmin));e<=Math.ceil(Math.log10(vmax));e++)[1,2,5].forEach(m=>{const v=m*Math.pow(10,e);if(v>=vmin&&v<=vmax)tk.push(v)}); if(tk.length>8) tk=tk.filter((v,i)=>String(v)[0]!=='2'); }
+    else tk=niceTicks(vmin,vmax,8);
+    tk.forEach(v=>{const t=((log?Math.log10(v):v)-lo)/(hi-lo),y=by+bh-t*bh;ctx.beginPath();ctx.moveTo(bx+bw,y);ctx.lineTo(bx+bw+5,y);ctx.stroke();ctx.fillText(v,bx+bw+8,y+5)});
+    ctx.save();ctx.translate(bx+bw+62,by+bh/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.font='15px system-ui,sans-serif';ctx.fillText('Apparent resistivity ρa (Ω·m)',0,0);ctx.restore();
+    // show
+    const url=cv.toDataURL('image/png'); lastDraw=url;
+    $('res').innerHTML=`<img alt="Pseudo cross-section" src="${url}">`;
+    $('blank').hidden=true;$('outBtns').hidden=false;$('saveHint').hidden=false;
+    if(!quiet) msg('drawMsg',`Drawn from ${P.length} points, ${rhos.length} readings. ρa range ${Math.min(...rhos)}–${Math.max(...rhos)} Ω·m.`,'ok');
+  }catch(err){ msg('drawMsg',esc(err.message),'err'); }
+}
+$('rmode').addEventListener('change',()=>{const man=$('rmode').value==='manual';$('vmin').disabled=!man;$('vmax').disabled=!man;});
+$('imeth').addEventListener('change',()=>{$('idwRow').style.display=$('imeth').value==='idw'?'flex':'none'});
+
+const INOTE={
+ nn:'Interpolation: natural neighbour (Sibson) – each point is estimated from the surrounding readings weighted by area of influence; smooth and never goes outside the range of the data.',
+ linear:'Interpolation: linear on triangles (TIN) – values change in straight lines between readings; faithful to the data but angular.',
+ rbf:'Interpolation: smooth surface (Gaussian kernel, kriging-like) – a very smooth fit that averages out small details and may not pass exactly through every reading.',
+ idw:()=>`Interpolation: inverse distance weighting, power ${$('idwp').value||2} – nearby readings count more; higher power gives more local “bull’s-eyes”.`,
+ nearest:'Interpolation: nearest neighbour – every cell takes the value of the closest reading, so the picture is blocky.'};
+function updNote(){const t=INOTE[$('imeth').value];$('interpNote').textContent=typeof t==='function'?t():t;}
+$('imeth').addEventListener('change',updNote);$('idwp').addEventListener('input',updNote);updNote();
+$('drawBtn').onclick=()=>draw(false);
+['look','nlev','lines','scale','yax','vmin','vmax','title','rmode','imeth','idwp','blur','topo','gres','vex','stlab','gwx'].forEach(i=>$(i).addEventListener('change',()=>{ if(window.__drawn) draw(true) }));
+$('dlBtn').onclick=()=>{ if(!lastDraw) return; const a=document.createElement('a');a.href=lastDraw;a.download='pseudo_cross_section.png';document.body.appendChild(a);a.click();a.remove(); };
+$('cpBtn').onclick=async()=>{ try{ const b=await (await fetch(lastDraw)).blob(); await navigator.clipboard.write([new ClipboardItem({'image/png':b})]); msg('drawMsg','Image copied – paste it into Word or PowerPoint.','ok'); }catch(e){ msg('drawMsg','Copy was blocked here. Right-click the picture and choose “Copy image”.','err'); } };
+
+/* ---------- map ---------- */
+let mapMode='line', mview=null, msig='', mdrag=null, mhover=null;
+const mc=$('map'), mx=mc.getContext('2d');
+const withXY=()=>points.filter(p=>p.e!==''&&p.n!==''&&isFinite(+p.e)&&isFinite(+p.n));
+const MW=mc.width, MH=mc.height;
+function fitView(list){
+  if(!list.length) return;
+  let e0=Infinity,e1=-Infinity,n0=Infinity,n1=-Infinity;
+  list.forEach(p=>{e0=Math.min(e0,+p.e);e1=Math.max(e1,+p.e);n0=Math.min(n0,+p.n);n1=Math.max(n1,+p.n)});
+  const w=Math.max(e1-e0,20),h=Math.max(n1-n0,20);
+  mview={cx:(e0+e1)/2,cy:(n0+n1)/2,s:Math.min((MW-160)/w,(MH-120)/h)};
+}
+function mainGroup(list){
+  if(list.length<4) return list;
+  const med=a=>{const b=a.slice().sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
+  const me=med(list.map(p=>+p.e)),mn=med(list.map(p=>+p.n));
+  const d=list.map(p=>Math.hypot(p.e-me,p.n-mn)),md=med(d);
+  const g=list.filter((p,i)=>d[i]<=Math.max(6*md,150)); return g.length>=3?g:list;
+}
+const W2S=(E,N)=>[MW/2+(E-mview.cx)*mview.s, MH/2-(N-mview.cy)*mview.s];
+const S2W=(x,y)=>[mview.cx+(x-MW/2)/mview.s, mview.cy-(y-MH/2)/mview.s];
+function segDist(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy;let t=L?((px-ax)*dx+(py-ay)*dy)/L:0;t=Math.max(0,Math.min(1,t));return Math.hypot(px-(ax+t*dx),py-(ay+t*dy));}
+function mapNice(span,n){const raw=span/n,p=Math.pow(10,Math.floor(Math.log10(raw))),m=raw/p;return (m<1.5?1:m<3?2:m<7?5:10)*p;}
+function mapDraw(){
+  const list=withXY(); $('mapCard').hidden=!list.length; if(!list.length) return;
+  const sig=list.map(p=>p.name+p.e+p.n).join('|'); if(!mview||sig!==msig){msig=sig;fitView(mainGroup(list));}
+  mx.clearRect(0,0,MW,MH); mx.fillStyle='#fcfdff'; mx.fillRect(0,0,MW,MH);
+  // grid
+  const [w0,n1]=S2W(0,0),[w1,n0]=S2W(MW,MH); const st=mapNice(Math.max(w1-w0,n1-n0),7);
+  mx.font='12px system-ui,sans-serif';mx.strokeStyle='#e6eaf2';mx.fillStyle='#8a94a8';mx.lineWidth=1;
+  mx.textAlign='center';
+  for(let E=Math.ceil(w0/st)*st;E<=w1;E+=st){const [x]=W2S(E,0);mx.beginPath();mx.moveTo(x,0);mx.lineTo(x,MH);mx.stroke();mx.fillText(Math.round(E),x,MH-6);}
+  mx.textAlign='left';
+  for(let N=Math.ceil(n0/st)*st;N<=n1;N+=st){const [,y]=W2S(0,N);mx.beginPath();mx.moveTo(0,y);mx.lineTo(MW,y);mx.stroke();mx.fillText(Math.round(N),4,y-3);}
+  // scale bar + north arrow
+  const sb=mapNice(120/mview.s,1); mx.strokeStyle='#222';mx.lineWidth=2;mx.beginPath();mx.moveTo(MW-30-sb*mview.s,MH-26);mx.lineTo(MW-30,MH-26);mx.stroke();
+  mx.fillStyle='#222';mx.textAlign='right';mx.font='13px system-ui,sans-serif';mx.fillText(sb+' m',MW-30,MH-32);
+  mx.textAlign='center';mx.font='bold 14px system-ui,sans-serif';mx.fillText('N ↑',MW-30,22);
+  // selected fit line
+  const sel=list.filter(p=>p.on);
+  if(sel.length>=2){
+    const mE=sel.reduce((a,p)=>a+ +p.e,0)/sel.length,mN=sel.reduce((a,p)=>a+ +p.n,0)/sel.length;
+    let sxx=0,syy=0,sxy=0;sel.forEach(p=>{const a=p.e-mE,b=p.n-mN;sxx+=a*a;syy+=b*b;sxy+=a*b});
+    const th=0.5*Math.atan2(2*sxy,sxx-syy),dx=Math.cos(th),dy=Math.sin(th);
+    const ts=sel.map(p=>(p.e-mE)*dx+(p.n-mN)*dy),t0=Math.min(...ts)-8,t1=Math.max(...ts)+8;
+    const a=W2S(mE+dx*t0,mN+dy*t0),b=W2S(mE+dx*t1,mN+dy*t1);
+    mx.strokeStyle='rgba(42,91,215,.55)';mx.lineWidth=2;mx.setLineDash([8,6]);mx.beginPath();mx.moveTo(a[0],a[1]);mx.lineTo(b[0],b[1]);mx.stroke();mx.setLineDash([]);
+  }
+  // drag preview
+  if(mdrag&&mapMode==='line'){
+    const buf=(+$('buf').value||15)*mview.s;
+    mx.save();mx.lineCap='round';mx.strokeStyle='rgba(232,150,20,.18)';mx.lineWidth=buf*2;mx.beginPath();mx.moveTo(mdrag.x0,mdrag.y0);mx.lineTo(mdrag.x1,mdrag.y1);mx.stroke();
+    mx.strokeStyle='#e89614';mx.lineWidth=2;mx.lineCap='butt';mx.beginPath();mx.moveTo(mdrag.x0,mdrag.y0);mx.lineTo(mdrag.x1,mdrag.y1);mx.stroke();mx.restore();
+  }
+  // points
+  const CLS={similar:'#2e9e5b',conductive:'#2a7fba',resistive:'#d1495b'};
+  list.forEach(p=>{const [x,y]=W2S(+p.e,+p.n); if(x<-20||x>MW+20||y<-20||y>MH+20) return;
+    const sc=p.scr, fillc=sc?CLS[sc.cls]:(p.on?'#2a5bd7':'#9aa5b8'), r=p.on?8:6;
+    mx.beginPath();mx.arc(x,y,r,0,7);mx.fillStyle=fillc;mx.fill();
+    mx.lineWidth=sc&&p.on?3.5:2;mx.strokeStyle=(mhover===p)?'#e89614':(sc&&p.on?'#14307a':'#fff');mx.stroke();
+    if(sc&&sc.known==='wet'){mx.beginPath();mx.arc(x,y,r+5,0,7);mx.lineWidth=2.5;mx.strokeStyle='#000';mx.stroke();}
+    if(sc&&sc.known==='dry'){mx.strokeStyle='#000';mx.lineWidth=3;mx.beginPath();mx.moveTo(x-8,y-8);mx.lineTo(x+8,y+8);mx.moveTo(x+8,y-8);mx.lineTo(x-8,y+8);mx.stroke();}
+    if(sc&&sc.warn&&sc.warn!=='DRY WELL'){mx.fillStyle='#b3261e';mx.font='bold 13px system-ui,sans-serif';mx.textAlign='center';mx.fillText(sc.warn==='high'?'!!':'!',x,y-12);}
+    mx.font=(p.on||(sc&&sc.known)?'bold ':'')+'13px system-ui,sans-serif';mx.textAlign='left';mx.fillStyle=p.on?'#14307a':'#4b566b';
+    const lab=p.name+(sc&&sc.known!=='dry'&&isFinite(sc.hint)&&!sc.known?' (~'+Math.round(sc.hint)+')':'');
+    mx.strokeStyle='rgba(255,255,255,.9)';mx.lineWidth=3;mx.strokeText(lab,x+10,y-8);mx.fillText(lab,x+10,y-8);});
+  if(SCR){const lx=8,ly=MH-100;mx.fillStyle='rgba(255,255,255,.92)';mx.fillRect(lx,ly,300,94);mx.font='12px system-ui,sans-serif';mx.textAlign='left';
+    [['similar','Similar to wells'],['conductive','More conductive (more clay?)'],['resistive','More resistive (tight rock?)']].forEach((q,i)=>{mx.fillStyle=CLS[q[0]];mx.beginPath();mx.arc(lx+12,ly+13+i*16,6,0,7);mx.fill();mx.fillStyle='#223';mx.fillText(q[1],lx+26,ly+17+i*16)});
+    mx.fillStyle='#555';mx.fillText('ring = well with water · X = dry well',lx+6,ly+68);mx.fillText('! = looks like a dry well · (~n) = depth hint, m',lx+6,ly+84);mx.font='12px system-ui,sans-serif';}
+  const hidden=list.filter(p=>{const [x,y]=W2S(+p.e,+p.n);return x<0||x>MW||y<0||y>MH}).length;
+  if(hidden) {mx.fillStyle='#8a94a8';mx.font='12px system-ui,sans-serif';mx.textAlign='left';mx.fillText(hidden+' point(s) outside view – “Show all”',8,16);}
+}
+function mpos(ev){const r=mc.getBoundingClientRect();return [(ev.clientX-r.left)*MW/r.width,(ev.clientY-r.top)*MH/r.height];}
+function nearest(x,y){let b=null,bd=18;withXY().forEach(p=>{const [px,py]=W2S(+p.e,+p.n),d=Math.hypot(px-x,py-y);if(d<bd){bd=d;b=p}});return b;}
+document.querySelectorAll('.mb').forEach(b=>b.onclick=()=>{mapMode=b.dataset.m;document.querySelectorAll('.mb').forEach(o=>o.classList.toggle('on',o===b));mc.style.cursor=mapMode==='pan'?'grab':mapMode==='pick'?'pointer':'crosshair';});
+mc.addEventListener('pointerdown',ev=>{ if(!mview) return; mc.setPointerCapture(ev.pointerId);const [x,y]=mpos(ev);
+  if(mapMode==='pick'){const p=nearest(x,y); if(p){p.on=!p.on;renderAll();selMsg();} return;}
+  mdrag={x0:x,y0:y,x1:x,y1:y,cx:mview.cx,cy:mview.cy,shift:ev.shiftKey};});
+mc.addEventListener('pointermove',ev=>{ const [x,y]=mpos(ev);
+  if(mdrag){ mdrag.x1=x;mdrag.y1=y; if(mapMode==='pan'){mview.cx=mdrag.cx-(x-mdrag.x0)/mview.s;mview.cy=mdrag.cy+(y-mdrag.y0)/mview.s;} mapDraw(); return; }
+  const h=nearest(x,y); if(h!==mhover){mhover=h;mapDraw(); $('mapInfo').textContent=h?`${h.name}  ·  E ${h.e}  N ${h.n}  ·  elevation ${h.elev} m  ·  ${h.on?'selected':'not selected'}`:'Draw a line across the points you want in one cross-section (hold Shift to add to the selection), or click points one by one. Mouse wheel = zoom.';}});
+mc.addEventListener('pointerup',ev=>{ if(!mdrag) return; const d=mdrag; mdrag=null;
+  if(mapMode==='line'&&Math.hypot(d.x1-d.x0,d.y1-d.y0)>8){
+    const [ax,ay]=S2W(d.x0,d.y0),[bx,by]=S2W(d.x1,d.y1),buf=+$('buf').value||15;
+    withXY().forEach(p=>{const hit=segDist(+p.e,+p.n,ax,ay,bx,by)<=buf; if(d.shift) p.on=p.on||hit; else p.on=hit;});
+    $('dmode').value='coords';$('dmode').onchange();
+    renderAll();selMsg();
+  } else mapDraw(); });
+mc.addEventListener('wheel',ev=>{ if(!mview) return; ev.preventDefault();const [x,y]=mpos(ev),[wx,wy]=S2W(x,y),f=ev.deltaY<0?1.2:1/1.2;mview.s*=f;
+  mview.cx=wx-(x-MW/2)/mview.s;mview.cy=wy+(y-MH/2)/mview.s;mapDraw();},{passive:false});
+function selMsg(){const n=points.filter(p=>p.on).length;
+  msg('mapMsg',n>=3?`${n} points selected for this section. Check the list on the left, choose colours, then click “Draw”.`:`${n} point(s) selected – you need at least 3. Try a wider “Select within … m” value.`,n>=3?'ok':'info');}
+$('fitMain').onclick=()=>{fitView(mainGroup(withXY()));mapDraw()};
+$('fitAll').onclick=()=>{fitView(withXY());mapDraw()};
+$('clrSel').onclick=()=>{points.forEach(p=>{if(p.src==='file')p.on=false});renderAll();msg('mapMsg','');};
+
+/* ---------- groundwater screening from known wells ---------- */
+let wells=[],SCR=null; const WPAL=['#d1495b','#2a7fba','#2e9e5b','#e67e22','#8e44ad','#16a085','#c0392b','#34495e'];
+function curveOf(pairs){const m=new Map();pairs.forEach(([a,r])=>{const q=m.get(a)||[];q.push(Math.log10(r));m.set(a,q)});const u=[...m.keys()].sort((x,y)=>x-y);return {u,lr:u.map(a=>{const q=m.get(a);return q.reduce((s,v)=>s+v,0)/q.length})};}
+function atC(c,L){const {u,lr}=c;if(L<=u[0])return Math.pow(10,lr[0]);if(L>=u[u.length-1])return Math.pow(10,lr[lr.length-1]);let i=1;while(u[i]<L)i++;const t=(Math.log10(L)-Math.log10(u[i-1]))/(Math.log10(u[i])-Math.log10(u[i-1]));return Math.pow(10,lr[i-1]+t*(lr[i]-lr[i-1]));}
+function gmeanC(c,a,b){let s=0;const n=9;for(let k=0;k<n;k++)s+=Math.log(atC(c,a+(b-a)*k/(n-1)));return Math.exp(s/n);}
+function crossC(c,v){for(let i=0;i<c.u.length-1;i++){if(c.u[i]<3)continue;const r0=Math.pow(10,c.lr[i]),r1=Math.pow(10,c.lr[i+1]);if(r0<v&&r1>=v){const t=(Math.log10(v)-c.lr[i])/(c.lr[i+1]-c.lr[i]);return Math.pow(10,Math.log10(c.u[i])+t*(Math.log10(c.u[i+1])-Math.log10(c.u[i])));}}return NaN;}
+const fmtN=v=>isFinite(v)?(v>=100?Math.round(v):+v.toPrecision(3)):'–';
+function gwRefreshUI(){
+  const ok=points.filter(p=>parsePairs(p.text).length>=5);
+  $('gwCard').hidden=ok.length<3;
+  const sel=$('wPt'),cur=sel.value; sel.innerHTML=ok.map(p=>`<option value="${p.id}">${esc(p.name||'(unnamed)')}</option>`).join(''); if(cur) sel.value=cur;
+  $('wList').innerHTML=''; wells.forEach((w,i)=>{const p=points.find(z=>z.id===w.id); if(!p) return;
+    const c=document.createElement('span');c.className='chip on';c.style.background=w.type==='wet'?'#2a7fba':'#444';c.style.borderColor=c.style.background;
+    c.textContent=`${p.name}: ${w.type==='wet'?'water '+w.a+'–'+w.b+' m':'dry, drilled '+w.b+' m'}  ×`;c.title='Remove';c.onclick=()=>{wells.splice(i,1);gwRefreshUI();};$('wList').appendChild(c);});
+}
+$('wType').onchange=()=>{const dry=$('wType').value==='dry';$('wALab').textContent=dry?'drilled to':'from';$('wA').style.display=dry?'none':'';};
+$('wAdd').onclick=()=>{
+  const id=+$('wPt').value,type=$('wType').value,a=type==='dry'?0:parseFloat($('wA').value),b=parseFloat($('wB').value);
+  if(!id||!isFinite(b)||(type==='wet'&&(!isFinite(a)||b<=a))){msg('scrMsg','Enter the water-bearing depth range (from < to) or, for a dry well, the drilled depth.','err');return;}
+  wells=wells.filter(w=>w.id!==id); wells.push({id,type,a,b}); msg('scrMsg',''); gwRefreshUI();
+};
+function runScreen(){
+  try{
+    const items=points.map(p=>({p,pairs:parsePairs(p.text)})).filter(o=>o.pairs.length>=5); items.forEach(o=>o.c=curveOf(o.pairs));
+    const by=id=>items.find(o=>o.p.id===id);
+    const wet=wells.filter(w=>w.type==='wet'&&by(w.id)),dry=wells.filter(w=>w.type==='dry'&&by(w.id));
+    if(!wet.length) throw new Error('Add at least one well where water was found (3 or more is better).');
+    const wa=Math.min(...wet.map(w=>w.a)),wb=Math.max(...wet.map(w=>w.b));
+    const gW=wet.map(w=>gmeanC(by(w.id).c,wa,wb));
+    const lo=wet.length>=3?Math.min(...gW)*0.9:Math.min(...gW)/1.4, hi=wet.length>=3?Math.max(...gW)*1.1:Math.max(...gW)*1.4;
+    const ref=Math.exp(wet.reduce((s,w)=>s+Math.log(atC(by(w.id).c,(w.a+w.b)/2)),0)/wet.length);
+    const maxG=Math.min(60,Math.min(...items.map(o=>o.c.u[o.c.u.length-1])));
+    const grid=Array.from({length:24},(_,k)=>Math.pow(10,Math.log10(3)+(Math.log10(maxG)-Math.log10(3))*k/23));
+    const prof=o=>grid.map(L=>Math.log10(atC(o.c,L))); items.forEach(o=>o.prof=prof(o));
+    const dist=(a,b)=>Math.sqrt(a.prof.reduce((s,v,i)=>s+(v-b.prof[i])**2,0)/a.prof.length);
+    const val=wet.map(w=>{const o=by(w.id),h=crossC(o.c,ref),mid=(w.a+w.b)/2;return {name:o.p.name,hint:h,a:w.a,b:w.b,inside:h>=w.a&&h<=w.b,err:h-mid};});
+    const dryG=dry.map(w=>gmeanC(by(w.id).c,wa,wb));
+    items.forEach(o=>{
+      const id=o.p.id,wl=wells.find(w=>w.id===id),g=gmeanC(o.c,wa,wb);
+      const dw=wet.filter(w=>w.id!==id).map(w=>({w,d:dist(o,by(w.id))})).sort((x,y)=>x.d-y.d)[0];
+      const dd=dry.filter(w=>w.id!==id).map(w=>dist(o,by(w.id))); const dmin=dd.length?Math.min(...dd):Infinity;
+      const cls=g<lo?'conductive':(g>hi?'resistive':'similar');
+      const conf=cls!=='similar'?'low':(dw&&dw.d<0.08?'high':(dw&&dw.d<0.15?'medium':'low'));
+      const dryRef=dryG.length?Math.min(...dryG):Infinity;
+      let warn=''; if(wl&&wl.type==='dry') warn='DRY WELL'; else if(g>=0.92*dryRef||dmin<0.06) warn='high'; else if(g>hi*0.97||dmin<0.12) warn='moderate';
+      o.p.scr={g,cls,near:dw?by(dw.w.id).p.name:'',dist:dw?dw.d:NaN,conf,hint:crossC(o.c,ref),warn,known:wl?wl.type:''};
+    });
+    SCR={lo,hi,ref,wa,wb,val,items,wet,dry,dryG,grid,by};
+    renderScr(); gwCurves(); mapDraw(); if(window.__drawn) draw(true);
+    const ins=val.filter(v=>v.inside).length;
+    msg('scrMsg',`Water-bearing band from ${wet.length} well(s): mean ρa over AB/2 ${wa}–${wb} m = ${fmtN(Math.min(...gW))}–${fmtN(Math.max(...gW))} Ω·m → band ${fmtN(lo)}–${fmtN(hi)} Ω·m. Depth hint (AB/2 where ρa ≈ ${fmtN(ref)} Ω·m) falls inside the real water interval at ${ins} of ${val.length} wells (mean error ${fmtN(val.reduce((s,v)=>s+Math.abs(v.err),0)/val.length)} m; this check uses the same wells the rule was built from).`+(wet.length<3?' <b>Only '+wet.length+' well(s) with water – the band is deliberately wide; add more.</b>':'')+(dry.length?` Dry well(s) mean ρa ${dryG.map(fmtN).join(', ')} Ω·m ${Math.min(...dryG)>hi?'(above the band, as expected)':'<b>(inside the band – resistivity alone does not separate wet from dry here)</b>'}.`:''),'info');
+  }catch(e){msg('scrMsg',esc(e.message),'err');}
+}
+function renderScr(){
+  if(!SCR) {$('scrOut').innerHTML='';return;}
+  const col={similar:'#e8f5e9',conductive:'#e3f0fb',resistive:'#fdecea'},nm={similar:'Similar to wells',conductive:'More conductive',resistive:'More resistive'};
+  let h='<table style="border-collapse:collapse;width:100%;font-size:12px"><tr style="background:#305496;color:#fff;text-align:left"><th style="padding:4px 6px">Point</th><th>Mean ρa<br>AB/2 '+SCR.wa+'–'+SCR.wb+'</th><th>Class</th><th>Nearest well</th><th>Curve diff.</th><th>Confidence</th><th>Depth hint (m)</th><th>Dry-well warning</th></tr>';
+  SCR.items.forEach(o=>{const s=o.p.scr;h+=`<tr style="background:${col[s.cls]};${s.known?'font-weight:700':''}"><td style="padding:3px 6px">${esc(o.p.name)}${s.known==='wet'?' 💧':s.known==='dry'?' ✕':''}${o.p.on?' ◀':''}</td><td>${fmtN(s.g)}</td><td>${nm[s.cls]}</td><td>${s.known?'(known well)':esc(s.near)}</td><td>${s.known?'':fmtN(s.dist)}</td><td>${s.known?'known':s.conf}</td><td>${fmtN(s.hint)}</td><td style="color:#b3261e;font-weight:700">${s.warn}</td></tr>`;});
+  $('scrOut').innerHTML=h+'</table><div class="small" style="margin-top:4px">💧 water found · ✕ dry well · ◀ in the current section. Depth hint is pseudo-depth (AB/2), accuracy about ±10 m.</div>';
+}
+$('scrBtn').onclick=runScreen;
+$('scrClear').onclick=()=>{SCR=null;points.forEach(p=>delete p.scr);$('scrOut').innerHTML='';$('scrCv').style.display='none';msg('scrMsg','');mapDraw();if(window.__drawn)draw(true);};
+$('scrCopy').onclick=async()=>{ if(!SCR) return; const t=['Point\tMean rho_a\tClass\tNearest well\tCurve diff\tConfidence\tDepth hint (m)\tDry-well warning'].concat(SCR.items.map(o=>{const s=o.p.scr;return [o.p.name,fmtN(s.g),s.cls,s.known?'(known)':s.near,s.known?'':fmtN(s.dist),s.known?'known':s.conf,fmtN(s.hint),s.warn].join('\t')})).join('\n');
+  try{await navigator.clipboard.writeText(t);msg('scrMsg','Table copied – paste into Excel.','ok');}catch(e){msg('scrMsg','Copy was blocked here. Select the table and copy it manually.','err');} };
+function gwCurves(){
+  if(!SCR) return; const cv=$('scrCv');cv.style.display='block';const c=cv.getContext('2d'),W=cv.width,H=cv.height,L=70,R=20,T=34,B=56,pw=W-L-R,ph=H-T-B;
+  c.fillStyle='#fff';c.fillRect(0,0,W,H);
+  let ymin=1e9,ymax=0,xmax=0;SCR.items.forEach(o=>{o.pairs.forEach(([a,r])=>{ymin=Math.min(ymin,r);ymax=Math.max(ymax,r);xmax=Math.max(xmax,a)})});
+  const lx0=Math.log10(1),lx1=Math.log10(xmax*1.05),ly0=Math.log10(ymin*0.8),ly1=Math.log10(ymax*1.2);
+  const X=a=>L+(Math.log10(a)-lx0)/(lx1-lx0)*pw,Y=r=>T+(ly1-Math.log10(r))/(ly1-ly0)*ph;
+  c.fillStyle='rgba(123,44,191,.09)';c.fillRect(L,Y(SCR.hi),pw,Y(SCR.lo)-Y(SCR.hi));
+  c.fillStyle='rgba(242,193,78,.2)';c.fillRect(X(SCR.wa),T,X(SCR.wb)-X(SCR.wa),ph);
+  c.strokeStyle='#e3e7ef';c.lineWidth=1;c.fillStyle='#667';c.font='12px system-ui,sans-serif';c.textAlign='center';
+  [1,2,5,10,20,50,100,200].filter(v=>v<=xmax*1.05).forEach(v=>{c.beginPath();c.moveTo(X(v),T);c.lineTo(X(v),T+ph);c.stroke();c.fillText(v,X(v),T+ph+16)});
+  c.textAlign='right';for(let e=Math.floor(ly0);e<=Math.ceil(ly1);e++)[1,2,5].forEach(m=>{const v=m*Math.pow(10,e);if(v<ymin*0.8||v>ymax*1.2)return;c.beginPath();c.moveTo(L,Y(v));c.lineTo(L+pw,Y(v));c.stroke();c.fillText(v,L-6,Y(v)+4)});
+  SCR.items.forEach(o=>{if(o.p.scr.known) return;c.strokeStyle='#c4cad6';c.lineWidth=1;c.beginPath();o.c.u.forEach((a,i)=>{const r=Math.pow(10,o.c.lr[i]);i?c.lineTo(X(a),Y(r)):c.moveTo(X(a),Y(r))});c.stroke();});
+  let k=0;const leg=[];
+  wells.forEach(w=>{const o=SCR.by(w.id);if(!o)return;const wet=w.type==='wet',colr=wet?WPAL[k++%WPAL.length]:'#000';
+    c.strokeStyle=colr;c.lineWidth=2.4;c.setLineDash(wet?[]:[7,5]);c.beginPath();o.c.u.forEach((a,i)=>{const r=Math.pow(10,o.c.lr[i]);i?c.lineTo(X(a),Y(r)):c.moveTo(X(a),Y(r))});c.stroke();c.setLineDash([]);
+    if(wet){c.lineWidth=9;c.globalAlpha=.5;c.beginPath();for(let t=0;t<=12;t++){const a=w.a+(w.b-w.a)*t/12,r=atC(o.c,a);t?c.lineTo(X(a),Y(r)):c.moveTo(X(a),Y(r))}c.stroke();c.globalAlpha=1;}
+    leg.push([colr,o.p.name+(wet?` (water ${w.a}–${w.b} m)`:` (dry, ${w.b} m)`),!wet]);});
+  c.strokeStyle='#222';c.lineWidth=1.2;c.strokeRect(L,T,pw,ph);c.fillStyle='#222';c.font='14px system-ui,sans-serif';c.textAlign='center';c.fillText('AB/2 (m) ≈ pseudo-depth',L+pw/2,H-12);
+  c.save();c.translate(18,T+ph/2);c.rotate(-Math.PI/2);c.fillText('Apparent resistivity ρa (Ω·m)',0,0);c.restore();
+  c.font='bold 15px system-ui,sans-serif';c.textAlign='left';c.fillText('Known wells vs all soundings (grey). Purple band = water-bearing ρa range; yellow = water depths',L,22);
+  c.font='12px system-ui,sans-serif';leg.forEach((q,i)=>{const y=T+16+i*16;c.strokeStyle=q[0];c.lineWidth=3;c.setLineDash(q[2]?[5,4]:[]);c.beginPath();c.moveTo(L+10,y);c.lineTo(L+34,y);c.stroke();c.setLineDash([]);c.fillStyle='#223';c.fillText(q[1],L+40,y+4)});
+}
+
+
+renderAll();
+</script>
+</body>
+</html>
